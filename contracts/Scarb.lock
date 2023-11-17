@@ -14,8 +14,8 @@ name = "dojo_plugin"
 version = "0.3.10"
 
 [[package]]
-name = "myapp"
-version = "0.0.1"
+name = "mlchess"
+version = "0.1.1"
 dependencies = [
  "pixelaw",
 ]
