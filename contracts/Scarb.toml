@@ -1,0 +1,39 @@
+[package]
+cairo-version = "2.3.0"
+name = "myapp"
+version = "0.0.1"
+
+[cairo]
+sierra-replace-ids = true
+
+[dependencies]
+pixelaw = { git = "https://github.com/pixelaw/core", branch = "main" }
+
+[[target.dojo]]
+build-external-contracts = [
+    "pixelaw::core::models::pixel::{pixel, Pixel, PixelUpdate}",
+    "pixelaw::core::models::registry::{app, app_name, core_actions_address}",
+    "pixelaw::core::models::permissions::{permissions}",
+    "pixelaw::core::utils::{get_core_actions, Direction, Position, DefaultParameters}",
+    "pixelaw::core::actions::{actions, IActionsDispatcher, IActionsDispatcherTrait}"
+]
+
+[tool.dojo]
+initializer_class_hash = "0xbeef"
+
+[scripts]
+# for deploying to demo katana
+deploy_demo = "sozo migrate --name pixelaw --rpc-url https://katana.demo.pixelaw.xyz/"
+initialize_demo = "bash ./scripts/default_auth.sh https://katana.demo.pixelaw.xyz/"
+upload_manifest_demo = "bash ./scripts/upload_manifest.sh https://demo.pixelaw.xyz/manifests/"
+
+# for local deployment
+deploy = "sozo migrate --name pixelaw"
+initialize = "bash ./scripts/default_auth.sh"
+upload_manifest = "bash ./scripts/upload_manifest.sh"
+
+[tool.dojo.env]
+rpc_url = "http://localhost:5050/"
+# Default account for katana with seed = 0
+account_address = "0x517ececd29116499f4a1b64b094da79ba08dfd54a3edaa316134c41f8160973"
+private_key = "0x1800000000300000180000000000030000000000003006001800006600"
