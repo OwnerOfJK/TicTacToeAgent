@@ -1,204 +1,202 @@
+use starknet::ContractAddress;
 use dojo::world::{IWorldDispatcher, IWorldDispatcherTrait};
-use pixelaw::core::models::pixel::{Pixel, PixelUpdate};
-use pixelaw::core::utils::{get_core_actions, Direction, Position, DefaultParameters};
-use starknet::{get_caller_address, get_contract_address, get_execution_info, ContractAddress};
-
 
 #[starknet::interface]
-trait IMyAppActions<TContractState> {
-    fn init(self: @TContractState);
-    fn interact(self: @TContractState, default_params: DefaultParameters);
-    fn fade(self: @TContractState, default_params: DefaultParameters);
+trait IActions<ContractState> {
+    fn move(
+        self: @ContractState,
+        curr_position: (u32, u32),
+        next_position: (u32, u32),
+        caller: ContractAddress, //player
+        game_id: felt252
+    );
+    fn spawn_game(
+        self: @ContractState, white_address: ContractAddress, black_address: ContractAddress, 
+    );
 }
-
-const APP_KEY: felt252 = 'MyApp';
-
-#[dojo::contract]
-mod myapp_actions {
-    use starknet::{
-        get_tx_info, get_caller_address, get_contract_address, get_execution_info, ContractAddress
-    };
-
-    use super::IMyAppActions;
-    use pixelaw::core::models::pixel::{Pixel, PixelUpdate};
-
-    use pixelaw::core::models::permissions::{Permission};
-    use pixelaw::core::actions::{
-        IActionsDispatcher as ICoreActionsDispatcher,
-        IActionsDispatcherTrait as ICoreActionsDispatcherTrait
-    };
-    use super::APP_KEY;
-    use pixelaw::core::utils::{get_core_actions, Direction, Position, DefaultParameters};
-
+#[starknet::contract]
+mod actions {
+    use dojo::world::{IWorldDispatcher, IWorldDispatcherTrait};
     use debug::PrintTrait;
+    use starknet::ContractAddress;
+    use dojo_chess::models::{Color, Square, PieceType, Game, GameTurn};
+    use super::IActions;
+    use dojo_chess::utils::{is_out_of_board, is_right_piece_move, is_piece_is_mine};
 
-    fn subu8(nr: u8, sub: u8) -> u8 {
-        if nr >= sub {
-            return nr - sub;
-        } else {
-            return 0;
-        }
+    #[storage]
+    struct Storage {
+        world_dispatcher: IWorldDispatcher, 
     }
 
-
-    // ARGB
-    // 0xFF FF FF FF
-    // empty: 0x 00 00 00 00
-    // normal color: 0x 00 FF FF FF
-
-    fn encode_color(r: u8, g: u8, b: u8) -> u32 {
-        (r.into() * 0x10000) + (g.into() * 0x100) + b.into()
-    }
-
-    fn decode_color(color: u32) -> (u8, u8, u8) {
-        let r = (color / 0x10000);
-        let g = (color / 0x100) & 0xff;
-        let b = color & 0xff;
-
-        (r.try_into().unwrap(), g.try_into().unwrap(), b.try_into().unwrap())
-    }
-
-    // impl: implement functions specified in trait
     #[external(v0)]
-    impl ActionsImpl of IMyAppActions<ContractState> {
-        /// Initialize the MyApp App (TODO I think, do we need this??)
-        fn init(self: @ContractState) {
+    impl PlayerActionsImpl of IActions<ContractState> {
+        fn spawn_game(
+            self: @ContractState, white_address: ContractAddress, black_address: ContractAddress
+        ) {
             let world = self.world_dispatcher.read();
-            let core_actions = pixelaw::core::utils::get_core_actions(world);
-
-            core_actions.update_app(APP_KEY, '', '');
-
-            // TODO: replace this with proper granting of permission
-
-            core_actions
-                .update_permission(
-                    'snake',
-                    Permission {
-                        alert: false,
-                        app: false,
-                        color: true,
-                        owner: false,
-                        text: true,
-                        timestamp: false,
-                        action: false
-                    }
-                );
-        }
-
-
-        /// Put color on a certain position
-        ///
-        /// # Arguments
-        ///
-        /// * `position` - Position of the pixel.
-        /// * `new_color` - Color to set the pixel to.
-        fn interact(self: @ContractState, default_params: DefaultParameters) {
-            'put_color'.print();
-
-            // Load important variables
-            let world = self.world_dispatcher.read();
-            let core_actions = get_core_actions(world);
-            let position = default_params.position;
-            let player = core_actions.get_player_address(default_params.for_player);
-            let system = core_actions.get_system_address(default_params.for_system);
-
-            // Load the Pixel
-            let mut pixel = get!(world, (position.x, position.y), (Pixel));
-
-            // TODO: Load MyApp App Settings like the fade steptime
-            // For example for the Cooldown feature
-            let COOLDOWN_SECS = 5;
-
-            // Check if 5 seconds have passed or if the sender is the owner
-            // TODO error message confusing, have to split this
-            assert(
-                pixel.owner.is_zero() || (pixel.owner) == player || starknet::get_block_timestamp()
-                    - pixel.timestamp < COOLDOWN_SECS,
-                'Cooldown not over'
+            let game_id = pedersen::pedersen(white_address.into(), black_address.into());
+            set!(
+                world,
+                (
+                    Game {
+                        game_id: game_id,
+                        winner: Color::None(()),
+                        white: white_address,
+                        black: black_address,
+                        }, GameTurn {
+                        game_id: game_id, turn: Color::White(()), 
+                    },
+                )
             );
 
-            // We can now update color of the pixel
-            core_actions
-                .update_pixel(
-                    player,
-                    system,
-                    PixelUpdate {
-                        x: position.x,
-                        y: position.y,
-                        color: Option::Some(default_params.color),
-                        alert: Option::None,
-                        timestamp: Option::None,
-                        text: Option::None,
-                        app: Option::Some(system),
-                        owner: Option::Some(player),
-                        action: Option::None // Not using this feature for myapp
-                    }
-                );
+            set!(world, (Square { game_id: game_id, x: 0, y: 0, piece: PieceType::WhiteRook }));
 
-            'put_color DONE'.print();
+            set!(world, (Square { game_id: game_id, x: 0, y: 1, piece: PieceType::WhitePawn }));
+
+            set!(world, (Square { game_id: game_id, x: 1, y: 6, piece: PieceType::BlackPawn }));
+
+            set!(world, (Square { game_id: game_id, x: 1, y: 0, piece: PieceType::WhiteKnight }));
         }
 
-
-        /// Put color on a certain position
-        ///
-        /// # Arguments
-        ///
-        /// * `position` - Position of the pixel.
-        /// * `new_color` - Color to set the pixel to.
-        fn fade(self: @ContractState, default_params: DefaultParameters) {
-            'fade'.print();
-
+        fn move(
+            self: @ContractState,
+            curr_position: (u32, u32),
+            next_position: (u32, u32),
+            caller: ContractAddress, //player
+            game_id: felt252
+        ) {
             let world = self.world_dispatcher.read();
-            let core_actions = get_core_actions(world);
-            let position = default_params.position;
-            let player = core_actions.get_player_address(default_params.for_player);
-            let system = core_actions.get_system_address(default_params.for_system);
-            let pixel = get!(world, (position.x, position.y), Pixel);
 
-            let (r, g, b) = decode_color(pixel.color);
+            let (current_x, current_y) = curr_position;
+            let (next_x, next_y) = next_position;
+            current_x.print();
+            current_y.print();
 
-            // If the color is 0,0,0 , let's stop the process, fading is done.
-            if r == 0 && g == 0 && b == 0 {
-                'fading is done'.print();
+            next_x.print();
+            next_y.print();
 
-                return;
+            let mut current_square = get!(world, (game_id, current_x, current_y), (Square));
+
+            // check if next_position is out of board or not
+            assert(is_out_of_board(next_position), 'Should be inside board');
+
+            // check if this is the right piece type move
+            assert(
+                is_right_piece_move(current_square.piece, curr_position, next_position),
+                'Should be right piece move'
+            );
+            let target_piece = current_square.piece;
+            // make current_square piece none and move piece to next_square 
+            current_square.piece = PieceType::None(());
+            let mut next_square = get!(world, (game_id, next_x, next_y), (Square));
+
+            // check the piece already in next_suqare
+            let maybe_next_square_piece = next_square.piece;
+
+            if maybe_next_square_piece == PieceType::None(()) {
+                next_square.piece = target_piece;
+            } else {
+                if is_piece_is_mine(maybe_next_square_piece) {
+                    panic(array!['Already same color piece exist'])
+                } else {
+                    next_square.piece = target_piece;
+                }
             }
 
-            // Fade the color
-            let FADE_STEP = 5;
-            let new_color = encode_color(
-                subu8(r, FADE_STEP), subu8(g, FADE_STEP), subu8(b, FADE_STEP)
-            );
-
-            let FADE_SECONDS = 0;
-
-            // We implement fading by scheduling a new put_fading_color
-            let queue_timestamp = starknet::get_block_timestamp() + FADE_SECONDS;
-            let mut calldata: Array<felt252> = ArrayTrait::new();
-
-            let THIS_CONTRACT_ADDRESS = get_contract_address();
-
-            // Calldata[0]: Calling player
-            calldata.append(player.into());
-
-            // Calldata[1]: Calling system
-            calldata.append(THIS_CONTRACT_ADDRESS.into());
-
-            // Calldata[2,3] : Position[x,y]
-            calldata.append(position.x.into());
-            calldata.append(position.y.into());
-
-            // Calldata[4] : Color
-            calldata.append(new_color.into());
-
-            core_actions
-                .schedule_queue(
-                    queue_timestamp, // When to fade next
-                    THIS_CONTRACT_ADDRESS, // This contract address
-                    get_execution_info().unbox().entry_point_selector, // This selector
-                    calldata.span() // The calldata prepared
-                );
-            'put_fading_color DONE'.print();
+            set!(world, (next_square));
+            set!(world, (current_square));
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use starknet::ContractAddress;
+    use dojo::test_utils::{spawn_test_world, deploy_contract};
+    use dojo_chess::models::{Game, game, GameTurn, game_turn, Square, square, PieceType};
+
+    use dojo_chess::actions_contract::actions;
+    use starknet::class_hash::Felt252TryIntoClassHash;
+    use dojo::world::IWorldDispatcherTrait;
+    use dojo::world::IWorldDispatcher;
+    use core::array::SpanTrait;
+    use super::{IActionsDispatcher, IActionsDispatcherTrait};
+
+    // helper setup function
+    // reusable function for tests
+    fn setup_world() -> (IWorldDispatcher, IActionsDispatcher) {
+        // models
+        let mut models = array![
+            game::TEST_CLASS_HASH, game_turn::TEST_CLASS_HASH, square::TEST_CLASS_HASH
+        ];
+        // deploy world with models
+        let world = spawn_test_world(models);
+
+        // deploy systems contract
+        let contract_address = world
+            .deploy_contract('salt', actions::TEST_CLASS_HASH.try_into().unwrap());
+        let actions_system = IActionsDispatcher { contract_address };
+
+        (world, actions_system)
+    }
+
+    #[test]
+    #[available_gas(3000000000000000)]
+    fn test_initiate() {
+        let white = starknet::contract_address_const::<0x01>();
+        let black = starknet::contract_address_const::<0x02>();
+
+        let (world, actions_system) = setup_world();
+
+        //system calls
+        actions_system.spawn_game(white, black);
+        let game_id = pedersen::pedersen(white.into(), black.into());
+
+        //get game
+        let game = get!(world, game_id, (Game));
+        assert(game.white == white, 'white address is incorrect');
+        assert(game.black == black, 'black address is incorrect');
+
+        //get a1 square
+        let a1 = get!(world, (game_id, 0, 0), (Square));
+        assert(a1.piece == PieceType::WhiteRook, 'should be White Rook');
+        assert(a1.piece != PieceType::None, 'should have piece');
+    }
+
+
+    #[test]
+    #[available_gas(3000000000000000)]
+    fn test_move() {
+        let white = starknet::contract_address_const::<0x01>();
+        let black = starknet::contract_address_const::<0x02>();
+
+        let (world, actions_system) = setup_world();
+        actions_system.spawn_game(white, black);
+
+        let game_id = pedersen::pedersen(white.into(), black.into());
+
+        let a2 = get!(world, (game_id, 0, 1), (Square));
+        assert(a2.piece == PieceType::WhitePawn, 'should be White Pawn');
+        assert(a2.piece != PieceType::None, 'should have piece');
+
+        actions_system.move((0, 1), (0, 2), white.into(), game_id);
+
+        let c3 = get!(world, (game_id, 0, 2), (Square));
+        assert(c3.piece == PieceType::WhitePawn, 'should be White Pawn');
+        assert(c3.piece != PieceType::None, 'should have piece');
+    }
+#[test]
+#[should_panic]
+fn test_ilegal_move() {
+    let white = starknet::contract_address_const::<0x01>();
+    let black = starknet::contract_address_const::<0x02>();
+    let (world, actions_system) = setup_world();
+    let game_id = pedersen::pedersen(white.into(), black.into());
+
+    let b1 = get!(world, (game_id, 1, 0), (Square));
+    assert(b1.piece == PieceType::WhiteKnight, 'should be White Knight');
+
+    // Knight cannot move to that square
+    actions_system.move((1,0),(2,3),white.into(), game_id);
+}
 }
