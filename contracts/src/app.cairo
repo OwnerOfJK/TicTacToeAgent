@@ -32,20 +32,20 @@ struct TicTacToeGame {
 
 #[starknet::interface]
 trait ITicTacToeActions<TContractState> {
-
     fn init(self: @TContractState);
     fn interact(self: @TContractState, default_params: DefaultParameters);
     fn human_move(self: @TContractState, default_params: DefaultParameters);
     fn machine_move(self: @TContractState, default_params: DefaultParameters);
-    //fn check_winner(self: @TContractState, default_params: DefaultParameters);
+    fn check_winner(
+        self: @TContractState, default_params: DefaultParameters, game_arrays: Array<u32>
+    );
     fn ownerless_space(self: @TContractState, default_params: DefaultParameters) -> bool;
     fn available_moves(self: @TContractState, default_params: DefaultParameters) -> u8;
 }
 
 #[dojo::contract]
 mod tictactoe_actions {
-    use starknet::{get_caller_address, get_contract_address, get_execution_info, ContractAddress
-    };
+    use starknet::{get_caller_address, get_contract_address, get_execution_info, ContractAddress};
     use super::ITicTacToeActions;
     use pixelaw::core::models::pixel::{Pixel, PixelUpdate};
     use pixelaw::core::models::permissions::{Permission};
@@ -53,10 +53,13 @@ mod tictactoe_actions {
         IActionsDispatcher as ICoreActionsDispatcher,
         IActionsDispatcherTrait as ICoreActionsDispatcherTrait
     };
-    use super::{APP_KEY, APP_ICON, APP_MANIFEST, GAME_MAX_DURATION, TicTacToeGame, State, tictactoe_size};
+    use super::{
+        APP_KEY, APP_ICON, APP_MANIFEST, GAME_MAX_DURATION, TicTacToeGame, State, tictactoe_size
+    };
     use pixelaw::core::utils::{get_core_actions, Position, DefaultParameters};
-	use pixelaw::core::models::registry::{App, AppName, CoreActionsAddress};
+    use pixelaw::core::models::registry::{App, AppName, CoreActionsAddress};
     use debug::PrintTrait;
+    use array::ArrayTrait;
 
     #[derive(Drop, starknet::Event)]
     struct GameOpened {
@@ -72,7 +75,6 @@ mod tictactoe_actions {
 
     #[external(v0)]
     impl TicTacToeActionsImpl of ITicTacToeActions<ContractState> {
-
         fn init(self: @ContractState) {
             let world = self.world_dispatcher.read();
             let core_actions = pixelaw::core::utils::get_core_actions(world);
@@ -81,11 +83,10 @@ mod tictactoe_actions {
         }
 
         fn interact(self: @ContractState, default_params: DefaultParameters) {
-            
             //core variables
             let world = self.world_dispatcher.read();
             let core_actions = get_core_actions(world);
-            
+
             //functional variables
             let position = default_params.position;
             let mut pixel = get!(world, (position.x, position.y), (Pixel));
@@ -95,17 +96,19 @@ mod tictactoe_actions {
             let player = core_actions.get_player_address(default_params.for_player);
             let system = core_actions.get_system_address(default_params.for_system);
 
-			if pixel.app == THIS_APP.system && game.state == State::WAITING_FOR_HUMAN //check if current pixel is a tictactoe pixel and game state
-			{
-				self.human_move(default_params);
-			}
-            else if pixel.app == THIS_APP.system && game.state == State::WAITING_FOR_MACHINE //check if current pixel is a tictactoe pixel and game state
-			{
-				'wait for machine to play'.print();
-			}
-			else if self.ownerless_space(default_params) == true //check if size grid ownerless;
-			{
-				let mut id = world.uuid(); //do we need this in this condition?
+            if pixel.app == THIS_APP.system
+                && game
+                    .state == State::WAITING_FOR_HUMAN //check if current pixel is a tictactoe pixel and game state
+                    {
+                self.human_move(default_params);
+            } else if pixel.app == THIS_APP.system
+                && game
+                    .state == State::WAITING_FOR_MACHINE //check if current pixel is a tictactoe pixel and game state
+                    {
+                'wait for machine to play'.print();
+            } else if self.ownerless_space(default_params) == true //check if size grid ownerless;
+            {
+                let mut id = world.uuid(); //do we need this in this condition?
                 game =
                     TicTacToeGame {
                         x: position.x,
@@ -116,51 +119,51 @@ mod tictactoe_actions {
                         started_timestamp: timestamp
                     };
 
-                emit!(world, GameOpened {game_id: game.id, creator: player});
+                emit!(world, GameOpened { game_id: game.id, creator: player });
 
                 set!(world, (game));
 
                 let mut i: u64 = 0;
-				let mut j: u64 = 0;
+                let mut j: u64 = 0;
                 loop {
-					if i >= tictactoe_size {
-						break;
-					}
-					j = 0;
-					loop {
-						if j >= tictactoe_size {
-							break;
-						}
-						core_actions
-							.update_pixel(
-							player,
-							system,
-							PixelUpdate {
-								x: position.x + j,
-								y: position.y + i,
-								color: Option::Some(default_params.color),
-								alert: Option::None,
-								timestamp: Option::None,
-								text: Option::None,
-								app: Option::Some(system),
-								owner: Option::Some(player),
-								action: Option::None,
-								}
-							);
-							j += 1;
-					};
-					i += 1;
-				};
-			} else {
-				'find a free area'.print();
-			}
-		}
+                    if i >= tictactoe_size {
+                        break;
+                    }
+                    j = 0;
+                    loop {
+                        if j >= tictactoe_size {
+                            break;
+                        }
+                        core_actions
+                            .update_pixel(
+                                player,
+                                system,
+                                PixelUpdate {
+                                    x: position.x + j,
+                                    y: position.y + i,
+                                    color: Option::Some(default_params.color),
+                                    alert: Option::None,
+                                    timestamp: Option::None,
+                                    text: Option::None,
+                                    app: Option::Some(system),
+                                    owner: Option::Some(player),
+                                    action: Option::None,
+                                }
+                            );
+                        j += 1;
+                    };
+                    i += 1;
+                };
+            } else {
+                'find a free area'.print();
+            }
+        }
 
         fn human_move(self: @ContractState, default_params: DefaultParameters) {
             //core variables
             let world = self.world_dispatcher.read();
             let core_actions = get_core_actions(world);
-            
+
             //functional variables
             let position = default_params.position;
             let mut pixel = get!(world, (position.x, position.y), (Pixel));
@@ -170,18 +173,18 @@ mod tictactoe_actions {
 
             core_actions
                 .update_pixel(
-                player,
-                system,
-                PixelUpdate {
-                    x: position.x,
-                    y: position.y,
-                    color: Option::Some(default_params.color),
-                    alert: Option::None,
-                    timestamp: Option::None,
-                    text: Option::Some('U+274C'),
-                    app: Option::Some(system),
-                    owner: Option::Some(player),
-                    action: Option::None,
+                    player,
+                    system,
+                    PixelUpdate {
+                        x: position.x,
+                        y: position.y,
+                        color: Option::Some(default_params.color),
+                        alert: Option::None,
+                        timestamp: Option::None,
+                        text: Option::Some('U+274C'),
+                        app: Option::Some(system),
+                        owner: Option::Some(player),
+                        action: Option::None,
                     }
                 );
             game.state = State::WAITING_FOR_MACHINE;
@@ -194,7 +197,7 @@ mod tictactoe_actions {
             //core variables
             let world = self.world_dispatcher.read();
             let core_actions = get_core_actions(world);
-            
+
             //functional variables
             let position = default_params.position;
             let mut pixel = get!(world, (position.x, position.y), (Pixel));
@@ -207,18 +210,18 @@ mod tictactoe_actions {
             //this is updating the pixelaw state
             core_actions
                 .update_pixel(
-                player,
-                system,
-                PixelUpdate {
-                    x: position.x,
-                    y: position.y,
-                    color: Option::Some(default_params.color),
-                    alert: Option::None,
-                    timestamp: Option::None,
-                    text: Option::Some('U+274C'),
-                    app: Option::Some(system),
-                    owner: Option::Some(player),
-                    action: Option::None,
+                    player,
+                    system,
+                    PixelUpdate {
+                        x: position.x,
+                        y: position.y,
+                        color: Option::Some(default_params.color),
+                        alert: Option::None,
+                        timestamp: Option::None,
+                        text: Option::Some('U+274C'),
+                        app: Option::Some(system),
+                        owner: Option::Some(player),
+                        action: Option::None,
                     }
                 );
 
@@ -229,40 +232,95 @@ mod tictactoe_actions {
         }
 
         fn ownerless_space(self: @ContractState, default_params: DefaultParameters) -> bool {
-        let world = self.world_dispatcher.read();
-        let core_actions = get_core_actions(world);
-        let position = default_params.position;
-        let mut pixel = get!(world, (position.x, position.y), (Pixel));
+            let world = self.world_dispatcher.read();
+            let core_actions = get_core_actions(world);
+            let position = default_params.position;
+            let mut pixel = get!(world, (position.x, position.y), (Pixel));
 
-        let mut i: u64 = 0;
-        let mut j: u64 = 0;
-        let mut check_test: bool = true;
+            let mut i: u64 = 0;
+            let mut j: u64 = 0;
+            let mut check_test: bool = true;
 
-        let check = loop {
-            if !(pixel.owner.is_zero() && i <= tictactoe_size)
-            {
-                break false;
-            }
-            pixel = get!(world, (position.x, (position.y + i)), (Pixel));
-            j = 0;
-            loop {
-                if !(pixel.owner.is_zero() && j <= tictactoe_size)
-                {
+            let check = loop {
+                if !(pixel.owner.is_zero() && i <= tictactoe_size) {
                     break false;
                 }
-                pixel = get!(world, ((position.x + j), position.y), (Pixel));
-                j += 1;
+                pixel = get!(world, (position.x, (position.y + i)), (Pixel));
+                j = 0;
+                loop {
+                    if !(pixel.owner.is_zero() && j <= tictactoe_size) {
+                        break false;
+                    }
+                    pixel = get!(world, ((position.x + j), position.y), (Pixel));
+                    j += 1;
+                };
+                i += 1;
+                break true;
             };
-            i += 1;
-            break true;
-        };
-        check
+            check
         }
 
         fn available_moves(self: @ContractState, default_params: DefaultParameters) -> u8 {
             let world = self.world_dispatcher.read();
             let test: u8 = 2;
             test
+        }
+
+        fn check_winner(
+            self: @ContractState, default_params: DefaultParameters, game_arrays: Array<u32>
+        ) {
+            //let mut winning_combinations = ArrayTrait::<u128>::new();
+
+            // Horizontal
+            let mut top_row = array![0, 1, 2];
+            let mut mid_row = array![3, 4, 5];
+            let mut bottom_row = array![6, 7, 8];
+
+            //diagonal
+            let mut left_right = array![0, 4, 8];
+            let mut right_left = array![2, 4, 6];
+
+            //Vertical
+            let mut left_col = array![0, 3, 6];
+            let mut mid_col = array![1,4,7];
+            let mut right_col = array![2,5,8];
+
+            let mut i: u32 = 0;
+            let mut j: u32 = 0;
+            let mut player_1_wincount: u32 = 0;
+            let mut player_2_wincount: u32 = 0;
+            let combination_size: u32 = 3;
+            let winning_combinations: u32 = 9;
+            let mut index: u32 = 0;
+
+            loop {
+                if i >= winning_combinations {
+                    break;
+                }
+                i = 0;
+                j = 0;
+                player_1_wincount = 0;
+                player_2_wincount = 0;
+                loop {
+                    if i >= combination_size {
+                        break;
+                    }
+                    if game_arrays.at(top_row.at(j)) == 1 {
+                        player_1_wincount += 1;
+                    }
+                    if game_arrays.at(top_row.at(j)) == 2 {
+                        player_2_wincount += 1;
+                    }
+                    i += 1;
+                };
+                if player_1_wincount == combination_size {
+                    'Player 1 wins'.print();
+                }
+                if player_2_wincount == combination_size {
+                    'Player 2 wins'.print();
+                }
+                i += 1;
+            };
         }
     }
 }
