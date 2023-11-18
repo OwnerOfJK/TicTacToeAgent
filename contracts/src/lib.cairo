@@ -1,3 +1,3 @@
 mod app;
 mod inference;
-//mod tests;
+mod tests;

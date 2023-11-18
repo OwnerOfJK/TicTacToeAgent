@@ -1,6 +1,6 @@
 [package]
 cairo-version = "2.3.0"
-name = "mlchess"
+name = "tictactoe"
 version = "0.1.1"
 
 [cairo]
