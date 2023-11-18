@@ -177,16 +177,22 @@ mod tictactoe_actions {
             let mut statearray = determine_game_state(world, game.x, game.y);
 
             // Check if the player won already
-            let winner = self.check_winner(default_params, statearray.clone());
+            let winner_state = self.check_winner(default_params, statearray.clone());
 
-            if winner == 1 {
+            if winner_state == 1 {
                 // TODO emit event and handle everything properly
                 'human winner'.print();
-                return 'winner!';
+                return 'human won!';
+            } else if winner_state == 2 {
+                'bot winner'.print();
+                return 'bot won!';
+            } else if winner_state == 0 {
+                'tie game'.print();
+                return 'tie game!';
             } else if game.moves_left == 0 {
                 'Oh.. its a tie'.print();
                 return 'tie';
-            }
+            } 
 
             // Get the AI move
             print_array(statearray.clone());
@@ -229,12 +235,21 @@ mod tictactoe_actions {
             set!(world, (game));
 
             // Check if the player won already
-            let winner = self.check_winner(default_params, statearray.clone());
+            let winner_state = self.check_winner(default_params, statearray.clone());
 
-            if winner == 2 {
+            if winner_state == 1 {
                 // TODO emit event and handle everything properly
-                'ai winner'.print();
-                return 'ai winner!';
+                'human winner'.print();
+                return 'human won!';
+            } else if winner_state == 2 {
+                'bot winner'.print();
+                return 'bot won!';
+            } else if winner_state == 0 {
+                'tie game'.print();
+                return 'tie game!';
+            } else if game.moves_left == 0 {
+                'Oh.. its a tie'.print();
+                return 'tie';
             }
 
             'play: done'.print();
@@ -247,13 +262,9 @@ mod tictactoe_actions {
         ) -> u8 {
             let mut player1: u8 = 1;
             let mut result: u8 = 0;
-            // if *game_array.at(0) == player1
-            //     && *game_array.at(1) == player1
-            //     && *game_array.at(2) == player1 {
-            //     result = 1;
-            // }
             let mut index = 0;
             let game_array2 = game_array.clone();
+            let mut arr: Array<u32> = ArrayTrait::new();
 
             loop {
                 if index == 3 {
@@ -264,6 +275,10 @@ mod tictactoe_actions {
                     && *game_array2.at(3 * index) == *game_array2.at(3 * index + 2)
                     && *game_array2.at(3 * index) != 0 {
                     result = *game_array2.at(3 * index);
+                    
+                    arr.append(3*index);
+                    arr.append(3*index + 1);
+                    arr.append(3*index + 2);
                 }
 
                 // Vertical check
@@ -271,22 +286,33 @@ mod tictactoe_actions {
                     && *game_array2.at(index) == *game_array2.at(index + 6)
                     && *game_array2.at(index) != 0 {
                     result = *game_array2.at(index);
+
+                    arr.append(index);
+                    arr.append(index + 3);
+                    arr.append(index + 6);
                 }
                 index = index + 1;
             };
-
+            
             let game_array3 = game_array.clone();
 
+            // Diagonals
             if *game_array3.at(0) == *game_array3.at(4)
                 && *game_array3.at(0) == *game_array3.at(8)
                 && *game_array3.at(0) != 0 {
                 result = *game_array3.at(0);
+                arr.append(0);
+                arr.append(4);
+                arr.append(8);
             }
 
             if *game_array3.at(2) == *game_array3.at(4)
                 && *game_array3.at(2) == *game_array3.at(6)
                 && *game_array3.at(2) != 0 {
                 result = *game_array3.at(2);
+                arr.append(2);
+                arr.append(4);
+                arr.append(6);
             }
 
             if result == 0 {
@@ -307,6 +333,43 @@ mod tictactoe_actions {
                     result = 3;
                 }
             }
+            else if (result == 1 || result == 2) && arr.len() == 3 {
+                let mut index = 0;
+                if result == 1 {
+                    let pixel_color = GREEN;
+                }
+                else {
+                    let pixel_color = RED;
+                }
+                loop {
+                    if index == 3 {
+                        break;
+                    }
+                    
+                    let pixel_position = position_from(ORIGIN, arr[index]);
+                    core_actions
+                    .update_pixel(
+                        player,
+                        get_contract_address(),
+                        PixelUpdate {
+                            x: pixel_position.x,
+                            y: pixel_position.y,
+                            // color: Option::None,
+                            color: Option::None,
+                            alert: Option::None,
+                            timestamp: Option::None,
+                            text: Option::Some('U+0058'),
+                            app: Option::None,
+                            owner: Option::None,
+                            action: Option::Some('none')
+                        }
+                    );
+                }
+
+
+            }
+            
+
             result
         }
     }
