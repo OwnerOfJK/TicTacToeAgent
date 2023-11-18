@@ -4,9 +4,9 @@ use pixelaw::core::utils::{get_core_actions, Direction, Position, DefaultParamet
 use pixelaw::core::models::registry::{App, AppName, CoreActionsAddress};
 use starknet::{get_caller_address, get_contract_address, get_execution_info, ContractAddress};
 use pixelaw::core::actions::{
-        IActionsDispatcher as ICoreActionsDispatcher,
-        IActionsDispatcherTrait as ICoreActionsDispatcherTrait
-    };
+    IActionsDispatcher as ICoreActionsDispatcher,
+    IActionsDispatcherTrait as ICoreActionsDispatcherTrait
+};
 
 const APP_KEY: felt252 = 'tictactoe';
 const APP_ICON: felt252 = 'U+1F4A3';
@@ -46,7 +46,11 @@ trait ITicTacToeActions<TContractState> {
     fn interact(self: @TContractState, default_params: DefaultParameters) -> felt252;
     fn play(self: @TContractState, default_params: DefaultParameters) -> felt252;
     fn check_winner(
-        self: @TContractState, origin: Position, core_actions: ICoreActionsDispatcher, default_params: DefaultParameters, game_array: Array<u8>
+        self: @TContractState,
+        origin: Position,
+        core_actions: ICoreActionsDispatcher,
+        default_params: DefaultParameters,
+        game_array: Array<u8>
     ) -> u8;
 }
 
@@ -180,7 +184,8 @@ mod tictactoe_actions {
             let mut statearray = determine_game_state(world, game.x, game.y);
 
             // Check if the player won already
-            let winner_state = self.check_winner(origin_position, core_actions, default_params, statearray.clone());
+            let winner_state = self
+                .check_winner(origin_position, core_actions, default_params, statearray.clone());
 
             if winner_state == 1 {
                 // TODO emit event and handle everything properly
@@ -195,7 +200,7 @@ mod tictactoe_actions {
             } else if game.moves_left == 0 {
                 'Oh.. its a tie'.print();
                 return 'tie';
-            } 
+            }
 
             // Get the AI move
             print_array(statearray.clone());
@@ -238,7 +243,8 @@ mod tictactoe_actions {
             set!(world, (game));
 
             // Check if the player won already
-            let winner_state = self.check_winner(origin_position, core_actions, default_params, statearray.clone());
+            let winner_state = self
+                .check_winner(origin_position, core_actions, default_params, statearray.clone());
 
             if winner_state == 1 {
                 // TODO emit event and handle everything properly
@@ -261,7 +267,11 @@ mod tictactoe_actions {
 
 
         fn check_winner(
-            self: @ContractState, origin: Position, core_actions: ICoreActionsDispatcher, default_params: DefaultParameters, game_array: Array<u8>
+            self: @ContractState,
+            origin: Position,
+            core_actions: ICoreActionsDispatcher,
+            default_params: DefaultParameters,
+            game_array: Array<u8>
         ) -> u8 {
             let mut player1: u8 = 1;
             let mut result: u8 = 0;
@@ -278,10 +288,10 @@ mod tictactoe_actions {
                     && *game_array2.at(3 * index) == *game_array2.at(3 * index + 2)
                     && *game_array2.at(3 * index) != 0 {
                     result = *game_array2.at(3 * index);
-                    
-                    arr.append(3*index);
-                    arr.append(3*index + 1);
-                    arr.append(3*index + 2);
+
+                    arr.append(3 * index);
+                    arr.append(3 * index + 1);
+                    arr.append(3 * index + 2);
                 }
 
                 // Vertical check
@@ -296,7 +306,7 @@ mod tictactoe_actions {
                 }
                 index = index + 1;
             };
-            
+
             let game_array3 = game_array.clone();
 
             // Diagonals
@@ -317,6 +327,7 @@ mod tictactoe_actions {
                 arr.append(4);
                 arr.append(6);
             }
+            let mut pixel_color: u32 = 0;
 
             if result == 0 {
                 let mut zero_found: bool = false;
@@ -335,45 +346,44 @@ mod tictactoe_actions {
                 } else {
                     result = 3;
                 }
-            }
-            else if (result == 1 || result == 2) && arr.len() == 3 {
+            } else if (result == 1 || result == 2) && arr.len() == 3 {
                 let mut index = 0;
                 if result == 1 {
                     // GREEN
-                    let pixel_color = 0x00ff00;
-                }
-                else {
+                    pixel_color = 0x00ff00;
+                } else {
                     // RED
-                    let pixel_color = 0xff0000;
+                    pixel_color = 0xff0000;
                 }
-                
+
+                let player = core_actions.get_player_address(default_params.for_player);
+                let system = core_actions.get_system_address(default_params.for_system);
+
                 loop {
                     if index == 3 {
                         break;
                     }
-                    
+
                     let pixel_position = position_from(origin, *arr.at(index));
-                    core_actions.update_pixel(
-                        player,
-                        get_contract_address(),
-                        PixelUpdate {
-                            x: pixel_position.x,
-                            y: pixel_position.y,
-                            // color: Option::None,
-                            color: Option::None,
-                            alert: Option::None,
-                            timestamp: Option::None,
-                            text: Option::Some('U+0058'),
-                            app: Option::None,
-                            owner: Option::None,
-                            action: Option::Some('none')
-                        }
-                    );
+                    core_actions
+                        .update_pixel(
+                            player,
+                            system,
+                            PixelUpdate {
+                                x: pixel_position.x,
+                                y: pixel_position.y,
+                                color: Option::Some(pixel_color),
+                                alert: Option::None,
+                                timestamp: Option::None,
+                                text: Option::Some('U+0058'),
+                                app: Option::None,
+                                owner: Option::None,
+                                action: Option::Some('none')
+                            }
+                        );
+                    index += 1;
                 }
-
-
             }
-            
 
             result
         }
