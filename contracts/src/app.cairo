@@ -260,37 +260,37 @@ mod tictactoe_actions {
                     break;
                 }
                 // Horizontal check
-                if *game_array2.at(3*index) == *game_array2.at(3*index + 1) 
-                    && *game_array2.at(3*index) == *game_array2.at(3*index + 2)
-                    && *game_array2.at(3*index) != 0 {
-                        result = *game_array2.at(3*index);
+                if *game_array2.at(3 * index) == *game_array2.at(3 * index + 1)
+                    && *game_array2.at(3 * index) == *game_array2.at(3 * index + 2)
+                    && *game_array2.at(3 * index) != 0 {
+                    result = *game_array2.at(3 * index);
                 }
 
                 // Vertical check
-                if *game_array2.at(index) == *game_array2.at(index + 3) 
+                if *game_array2.at(index) == *game_array2.at(index + 3)
                     && *game_array2.at(index) == *game_array2.at(index + 6)
                     && *game_array2.at(index) != 0 {
-                        result = *game_array2.at(index);
+                    result = *game_array2.at(index);
                 }
-                index = index + 1 ;
+                index = index + 1;
             };
 
             let game_array3 = game_array.clone();
 
-            if *game_array3.at(0) == *game_array3.at(4) 
+            if *game_array3.at(0) == *game_array3.at(4)
                 && *game_array3.at(0) == *game_array3.at(8)
                 && *game_array3.at(0) != 0 {
-                    result = *game_array3.at(0);
-                }
-            
-            if *game_array3.at(2) == *game_array3.at(4) 
+                result = *game_array3.at(0);
+            }
+
+            if *game_array3.at(2) == *game_array3.at(4)
                 && *game_array3.at(2) == *game_array3.at(6)
                 && *game_array3.at(2) != 0 {
-                    result = *game_array3.at(2);
+                result = *game_array3.at(2);
             }
 
             if result == 0 {
-                let mut zero_found:bool = false;
+                let mut zero_found: bool = false;
                 let mut index = 0;
                 loop {
                     if index == 8 {
@@ -303,8 +303,7 @@ mod tictactoe_actions {
                 };
                 if zero_found {
                     result = 0;
-                }
-                else {
+                } else {
                     result = 3;
                 }
             }
@@ -330,8 +329,8 @@ mod tictactoe_actions {
     // For a given array index, give the appropriate position
     fn position_from(origin: Position, index: u32) -> Position {
         let mut result = origin.clone();
-        result.x = result.x + ((index + 1) / 3).into();
-        result.y = result.y + ((index + 1) % 3).into();
+        result.x = origin.x + (index % 3).into(); // Adjusting for 0-based indexing
+        result.y = origin.y + (index / 3).into(); // Adjusting for 0-based indexing
         result
     }
 

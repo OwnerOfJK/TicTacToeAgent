@@ -122,7 +122,7 @@ mod tests {
                 DefaultParameters {
                     for_player: Zeroable::zero(),
                     for_system: Zeroable::zero(),
-                    position: Position { x: 3, y: 1 },
+                    position: Position { x: 1, y: 3 },
                     color: 0xff0000
                 },
             );
