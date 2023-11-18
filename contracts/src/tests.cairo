@@ -132,4 +132,86 @@ mod tests {
 
         'Passed test'.print();
     }
+
+
+    #[test]
+    #[available_gas(3000000000)]
+    fn test_check_winners() {
+        // Deploy everything
+        let (world, core_actions, tictactoe_actions) = deploy_world();
+
+        let dummy_uuid = world.uuid();
+
+        core_actions.init();
+        tictactoe_actions.init();
+
+        let player1 = starknet::contract_address_const::<0x1337>();
+        starknet::testing::set_account_contract_address(player1);
+        
+        let game_array: Array<u8> = array![
+                1,1,1,
+                0,2,2,
+                1,2,0];
+        let result = tictactoe_actions.check_winner(
+            DefaultParameters {
+                    for_player: Zeroable::zero(),
+                    for_system: Zeroable::zero(),
+                    position: Position { x: 1, y: 1 },
+                    color: 0xff0000
+                },
+                game_array
+        );
+        assert(result == 1, 'player 1 should win');
+
+        let game_array: Array<u8> = array![
+                1,2,1,
+                0,2,1,
+                1,2,0];
+        let game_array2 = game_array.clone();
+        let result = tictactoe_actions.check_winner(
+            DefaultParameters {
+                    for_player: Zeroable::zero(),
+                    for_system: Zeroable::zero(),
+                    position: Position { x: 1, y: 1 },
+                    color: 0xff0000
+                },
+                game_array
+        );
+
+    
+        assert(result == 2, 'player 2 should win');
+
+
+        let game_array: Array<u8> = array![
+                0,0,0,
+                0,2,0,
+                1,2,0];
+        let result = tictactoe_actions.check_winner(
+            DefaultParameters {
+                    for_player: Zeroable::zero(),
+                    for_system: Zeroable::zero(),
+                    position: Position { x: 1, y: 1 },
+                    color: 0xff0000
+                },
+                game_array
+        );
+        assert(result == 0, 'game should continue');
+
+        let game_array: Array<u8> = array![
+                1,2,1,
+                2,2,1,
+                1,1,2];
+        let result = tictactoe_actions.check_winner(
+            DefaultParameters {
+                    for_player: Zeroable::zero(),
+                    for_system: Zeroable::zero(),
+                    position: Position { x: 1, y: 1 },
+                    color: 0xff0000
+                },
+                game_array
+        );
+        assert(result == 3, 'game should be tied');
+    
+    }
+    
 }
