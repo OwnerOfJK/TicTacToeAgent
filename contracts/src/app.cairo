@@ -235,10 +235,66 @@ mod tictactoe_actions {
         ) -> u8 {
             let mut player1: u8 = 1;
             let mut result: u8 = 0;
-            if *game_array.at(0) == player1
-                && *game_array.at(1) == player1
-                && *game_array.at(2) == player1 {
-                result = 1;
+            // if *game_array.at(0) == player1
+            //     && *game_array.at(1) == player1
+            //     && *game_array.at(2) == player1 {
+            //     result = 1;
+            // }
+            let mut index = 0;
+            let game_array2 = game_array.clone();
+
+            loop {
+                if index == 3 {
+                    break;
+                }
+                // Horizontal check
+                if *game_array2.at(3*index) == *game_array2.at(3*index + 1) 
+                    && *game_array2.at(3*index) == *game_array2.at(3*index + 2)
+                    && *game_array2.at(3*index) != 0 {
+                        result = *game_array2.at(3*index);
+                }
+
+                // Vertical check
+                if *game_array2.at(index) == *game_array2.at(index + 3) 
+                    && *game_array2.at(index) == *game_array2.at(index + 6)
+                    && *game_array2.at(index) != 0 {
+                        result = *game_array2.at(3*index);
+                }
+                index = index + 1 ;
+            };
+
+            let game_array3 = game_array.clone();
+
+            if *game_array3.at(0) == *game_array3.at(4) 
+                && *game_array3.at(0) == *game_array3.at(8)
+                && *game_array3.at(0) != 0 {
+                    result = *game_array3.at(0);
+                }
+            
+            if *game_array3.at(2) == *game_array3.at(4) 
+                && *game_array3.at(2) == *game_array3.at(6)
+                && *game_array3.at(2) != 0 {
+                    result = *game_array3.at(2);
+            }
+
+            if result == 0 {
+                let mut zero_found:bool = false;
+                let mut index = 0;
+                loop {
+                    if index == 8 {
+                        break;
+                    }
+                    if *game_array3.at(index) == 0 {
+                        zero_found = true;
+                    }
+                    index += 1;
+                };
+                if zero_found {
+                    result = 0;
+                }
+                else {
+                    result = 3;
+                }
             }
             result
         }

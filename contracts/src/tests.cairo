@@ -108,4 +108,5 @@ mod tests {
 
         'Passed test'.print();
     }
+    
 }
