@@ -132,14 +132,53 @@ mod tictactoe_actions {
             assert(pixel.app == get_contract_address(), 'not a TTT app pixel');
 
             // And load the corresponding GameField
-            let field = get!(world, (position.x, position.y), TicTacToeGameField);
+            let mut field = get!(world, (position.x, position.y), TicTacToeGameField);
+
+            // Ensure this pixel was not already used for a move
+            assert(field.state == 0, 'field already set');
+
+            // Process the player's move
+            field.state = 1;
+            set!(world, (field));
+
+            // Change the Pixel
+            core_actions
+                .update_pixel(
+                    player,
+                    get_contract_address(),
+                    PixelUpdate {
+                        x: position.x,
+                        y: position.y,
+                        color: Option::None,
+                        alert: Option::None, 
+                        timestamp: Option::None,
+                        text: Option::Some('U+0058'),
+                        app: Option::None,
+                        owner: Option::None,
+                        action: Option::Some('none')
+                    }
+                );
 
             // And load the Game
-            let game = get!(world, (field.id), TicTacToeGame);
+            let mut game = get!(world, (field.id), TicTacToeGame);
+
 
             // Determine the game state
             // Loop all the pixels, starting with the main
             let statearray = determine_game_state(world, game.x, game.y);
+
+
+            // Get the AI move
+            let ai_move = predict(statearray);
+
+            // Handle the AI move
+                // Change the field
+                // Change the pixel
+                // Update the Game object
+
+
+            // Check if the game is done and determine winner
+
 
             'done'
         }
