@@ -192,7 +192,7 @@ mod tictactoe_actions {
             }
 
             // Get the AI move
-            let ai_move_index = move_selector(statearray.clone(), 1);
+            let ai_move_index = move_selector(statearray.clone()).unwrap();
 
             // Handle the AI move
             // Find the pixel belonging to the index returned 

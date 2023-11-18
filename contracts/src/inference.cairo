@@ -12,9 +12,13 @@ use sequential_1_dense_2_biasadd_readvariableop_0::tensor as t4;
 use sequential_1_dense_3_matmul_readvariableop_0::tensor as t5;
 use sequential_1_dense_3_biasadd_readvariableop_0::tensor as t6;
 
-const MOVE_PLAYER0: u8 = 0;
-const MOVE_PLAYER1: u8 = 1;
-const MOVE_EMPTY: u8 = 2;
+const MOVE_PLAYER0: u8 = 1;
+const MOVE_PLAYER1: u8 = 2;
+const MOVE_EMPTY: u8 = 0;
+
+const MODEL_MOVE_PLAYER0: u8 = 0;
+const MODEL_MOVE_PLAYER1: u8 = 1;
+const MODEL_MOVE_EMPTY: u8 = 2;
 
 fn predict(mut x: Tensor<FP16x16>) -> FP16x16 {
     // let two = FixedTrait::<FP16x16>::new_unscaled(2, false);
@@ -100,33 +104,14 @@ fn modify_array_at_index(array: @Array<u8>, index: u32, value: u8) -> Array<u8> 
     };
     new_array
 }
-// def move_selector(model,current_board_state,turn_monitor):
-//     """Function that selects the next move to make from a set of possible legal moves
 
-//     Args:
-//     model: The Evaluator function to use to evaluate each possible next board state
-//     turn_monitor: 1 if it's the player who places the mark 1's turn to play, 0 if its his opponent's turn
+fn move_selector(current_board_state: Array<u8>) -> Option<u32> { // index of the move
+    let turn_monitor = MOVE_PLAYER1;
 
-//     Returns:
-//     selected_move: The numpy array coordinates where the player should place thier mark
-//     new_board_state: The flattened new board state resulting from performing above selected move
-//     score: The score that was assigned to the above selected_move by the Evaluator (model)
-
-//     """
-//     tracker={}
-//     legal_moves_dict=legal_moves_generator(current_board_state,turn_monitor)
-//     for legal_move_coord in legal_moves_dict:
-//         score=model.predict(legal_moves_dict[legal_move_coord].reshape(1,9))
-//         tracker[legal_move_coord]=score
-//     selected_move=max(tracker, key=tracker.get)
-//     new_board_state=legal_moves_dict[selected_move]
-//     score=tracker[selected_move]
-//     return selected_move,new_board_state,score
-
-fn move_selector(current_board_state: Array<u8>, turn_monitor: u8) -> u32 { // index of the move
     let mut current_max_location = 0;
     let mut current_max = FixedTrait::<FP16x16>::new_unscaled(1000, true); // -1000
     let legal_moves = legal_moves_generator(@current_board_state, turn_monitor);
+    let mut found = false;
 
     let mut i = 0;
     loop {
@@ -146,19 +131,24 @@ fn move_selector(current_board_state: Array<u8>, turn_monitor: u8) -> u32 { // i
             // set current prediction and index to max prediction
             current_max = value;
             current_max_location = *location;
+            found = true;
         }
         i += 1;
     };
     // return the move in the index
-    current_max_location
+    if (found) {
+        Option::Some(current_max_location)
+    } else {
+        Option::None
+    }
 }
 
 // TODO impl Into<Array<u8>, Tensor>
 fn board_state_to_tensor(board_state: @Array<u8>) -> Tensor<FP16x16> {
     // TODO globals?
-    let p0 = FixedTrait::<FP16x16>::new_unscaled(MOVE_PLAYER0.into(), false);
-    let p1 = FixedTrait::<FP16x16>::new_unscaled(MOVE_PLAYER1.into(), false);
-    let empty = FixedTrait::<FP16x16>::new_unscaled(MOVE_EMPTY.into(), false);
+    let p0 = FixedTrait::<FP16x16>::new_unscaled(MODEL_MOVE_PLAYER0.into(), false);
+    let p1 = FixedTrait::<FP16x16>::new_unscaled(MODEL_MOVE_PLAYER1.into(), false);
+    let empty = FixedTrait::<FP16x16>::new_unscaled(MODEL_MOVE_EMPTY.into(), false);
 
     let mut tensor_data = ArrayTrait::new();
 
@@ -186,7 +176,8 @@ fn board_state_to_tensor(board_state: @Array<u8>) -> Tensor<FP16x16> {
 
 #[cfg(test)]
 mod tests {
-    use super::{MOVE_PLAYER0, MOVE_PLAYER1, MOVE_EMPTY};
+    use debug::PrintTrait;
+    use super::{MOVE_PLAYER0, MOVE_PLAYER1, MOVE_EMPTY, MODEL_MOVE_PLAYER0, MODEL_MOVE_PLAYER1, MODEL_MOVE_EMPTY};
     use orion::numbers::{FP16x16, FixedTrait};
     #[test]
     #[available_gas(2000000000000)]
@@ -262,9 +253,9 @@ mod tests {
         // TODO
         // assert(tensor.shape(0) == 9, 'wrong tensor shape');
 
-        let p0 = FixedTrait::<FP16x16>::new_unscaled(MOVE_PLAYER0.into(), false);
-        let p1 = FixedTrait::<FP16x16>::new_unscaled(MOVE_PLAYER1.into(), false);
-        let empty = FixedTrait::<FP16x16>::new_unscaled(MOVE_EMPTY.into(), false);
+        let p0 = FixedTrait::<FP16x16>::new_unscaled(MODEL_MOVE_PLAYER0.into(), false);
+        let p1 = FixedTrait::<FP16x16>::new_unscaled(MODEL_MOVE_PLAYER1.into(), false);
+        let empty = FixedTrait::<FP16x16>::new_unscaled(MODEL_MOVE_EMPTY.into(), false);
 
         assert(*tensor.data.at(0) == p0, 'wrong value at index 0');
         assert(*tensor.data.at(1) == p0, 'wrong value at index 1');
@@ -279,36 +270,7 @@ mod tests {
 
     #[test]
     #[available_gas(2000000000000)]
-    fn test_move_selector_player0() {
-        // The state looks like this:
-        // o o _
-        // x x o
-        // x _ x
-        //
-        // An ideal AI should make a move on (0, 2) when playing with "o"
-
-        let state = array![
-            MOVE_PLAYER0,
-            MOVE_PLAYER0,
-            MOVE_EMPTY,
-            MOVE_PLAYER1,
-            MOVE_PLAYER1,
-            MOVE_PLAYER0,
-            MOVE_PLAYER1,
-            MOVE_EMPTY,
-            MOVE_PLAYER1,
-        ];
-
-        let current_player = MOVE_PLAYER0;
-
-        let move = super::move_selector(state, current_player);
-
-        assert(move == 2, 'bad move');
-    }
-
-    #[test]
-    #[available_gas(2000000000000)]
-    fn test_move_selector_player1() {
+    fn test_move_selector() {
         // The state looks like this:
         // o x o
         // o x _
@@ -327,10 +289,36 @@ mod tests {
             MOVE_PLAYER0,
         ];
 
-        let current_player = MOVE_PLAYER1;
-
-        let move = super::move_selector(state, current_player);
+        let move = super::move_selector(state).unwrap();
 
         assert(move == 7, 'bad move');
+    }
+
+    #[test]
+    #[available_gas(2000000000000)]
+    fn test_only_one_move() {
+        // The state looks like this:
+        // o _ _
+        // _ _ _
+        // _ _ _
+        //
+
+        let state = array![
+            MOVE_PLAYER0,
+            MOVE_EMPTY,
+            MOVE_EMPTY,
+            MOVE_EMPTY,
+            MOVE_EMPTY,
+            MOVE_EMPTY,
+            MOVE_EMPTY,
+            MOVE_EMPTY,
+            MOVE_EMPTY,
+        ];
+
+        let current_player = MOVE_PLAYER1;
+
+        let move = super::move_selector(state).unwrap();
+
+        assert(move != 0, 'bad move');
     }
 }
