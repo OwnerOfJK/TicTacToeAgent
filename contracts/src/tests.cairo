@@ -103,6 +103,30 @@ mod tests {
                 },
             );
 
+
+        // Play the first move
+        tictactoe_actions
+            .play(
+                DefaultParameters {
+                    for_player: Zeroable::zero(),
+                    for_system: Zeroable::zero(),
+                    position: Position { x: 2, y: 1 },
+                    color: 0xff0000
+                },
+            );
+
+
+        // Play the first move
+        tictactoe_actions
+            .play(
+                DefaultParameters {
+                    for_player: Zeroable::zero(),
+                    for_system: Zeroable::zero(),
+                    position: Position { x: 3, y: 1 },
+                    color: 0xff0000
+                },
+            );
+
         let pixel_1_1 = get!(world, (1, 1), (Pixel));
         assert(pixel_1_1.color == 0, 'should be the color');
 

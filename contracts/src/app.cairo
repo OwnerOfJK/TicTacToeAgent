@@ -176,6 +176,12 @@ mod tictactoe_actions {
             // Determine the game state
             let mut statearray = determine_game_state(world, game.x, game.y);
 
+
+            // Check if the player won already
+            let winner = self.check_winner(default_params, statearray);
+
+            if winner == 1
+
             if game.moves_left == 0 {
                 let winner = self.check_winner(default_params, statearray);
                 // Check if the game is done and determine winner
@@ -183,16 +189,23 @@ mod tictactoe_actions {
                 if winner == 0 {
                     'Oh.. its a tie'.print();
                 } else if winner == 1 {
-                    'AI Winner'.print();
+                    'Human Winner'.print();
                 } else if winner == 2 {
+                    'AI Winner'.print();
+                }else{
                     panic(array!['this is weird']);
+
                 }
 
                 return 'done'; // TODO emit event and return string
             }
 
             // Get the AI move
+            let ai_move_index = move_selector(statearray.clone()).unwrap();
+            print_array(statearray.clone());
             let ai_move_index = move_selector(statearray.clone(), 1);
+'ai move'.print();
+ai_move_index.print();
 
             // Handle the AI move
             // Find the pixel belonging to the index returned 
@@ -300,6 +313,22 @@ mod tictactoe_actions {
         }
     }
 
+
+    fn print_array(array: Array<u8>)  {
+        'printing 9 array:'.print();
+        (*array.at(0)).print();
+        (*array.at(1)).print();
+        (*array.at(2)).print();
+        (*array.at(3)).print();
+        (*array.at(4)).print();
+        (*array.at(5)).print();
+        (*array.at(6)).print();
+        (*array.at(7)).print();
+        (*array.at(8)).print();
+        'printing 9 array: end'.print();
+
+    }
+
     // For a given array index, give the appropriate position
     fn position_from(origin: Position, index: u32) -> Position {
         let mut result = origin.clone();
@@ -322,7 +351,7 @@ mod tictactoe_actions {
                     break;
                 }
 
-                let field = get!(world, (x + i, y + j), TicTacToeGameField);
+                let field = get!(world, (x + j, y + i), TicTacToeGameField);
                 result.append(field.state);
 
                 j += 1;
