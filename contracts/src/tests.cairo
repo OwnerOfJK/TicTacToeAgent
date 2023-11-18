@@ -145,6 +145,7 @@ mod tests {
         core_actions.init();
         tictactoe_actions.init();
 
+        let origin = Position { x: 1, y: 1 };
         let player1 = starknet::contract_address_const::<0x1337>();
         starknet::testing::set_account_contract_address(player1);
         
@@ -153,6 +154,8 @@ mod tests {
                 0,2,2,
                 1,2,0];
         let result = tictactoe_actions.check_winner(
+            origin,
+            core_actions,
             DefaultParameters {
                     for_player: Zeroable::zero(),
                     for_system: Zeroable::zero(),
@@ -169,6 +172,8 @@ mod tests {
                 1,2,0];
         let game_array2 = game_array.clone();
         let result = tictactoe_actions.check_winner(
+            origin,
+            core_actions,
             DefaultParameters {
                     for_player: Zeroable::zero(),
                     for_system: Zeroable::zero(),
@@ -187,6 +192,8 @@ mod tests {
                 0,2,0,
                 1,2,0];
         let result = tictactoe_actions.check_winner(
+            origin,
+            core_actions,
             DefaultParameters {
                     for_player: Zeroable::zero(),
                     for_system: Zeroable::zero(),
@@ -202,6 +209,8 @@ mod tests {
                 2,2,1,
                 1,1,2];
         let result = tictactoe_actions.check_winner(
+            origin,
+            core_actions,
             DefaultParameters {
                     for_player: Zeroable::zero(),
                     for_system: Zeroable::zero(),

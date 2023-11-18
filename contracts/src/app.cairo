@@ -3,7 +3,10 @@ use pixelaw::core::models::pixel::{Pixel, PixelUpdate};
 use pixelaw::core::utils::{get_core_actions, Direction, Position, DefaultParameters};
 use pixelaw::core::models::registry::{App, AppName, CoreActionsAddress};
 use starknet::{get_caller_address, get_contract_address, get_execution_info, ContractAddress};
-
+use pixelaw::core::actions::{
+        IActionsDispatcher as ICoreActionsDispatcher,
+        IActionsDispatcherTrait as ICoreActionsDispatcherTrait
+    };
 
 const APP_KEY: felt252 = 'tictactoe';
 const APP_ICON: felt252 = 'U+1F4A3';
@@ -43,7 +46,7 @@ trait ITicTacToeActions<TContractState> {
     fn interact(self: @TContractState, default_params: DefaultParameters) -> felt252;
     fn play(self: @TContractState, default_params: DefaultParameters) -> felt252;
     fn check_winner(
-        self: @TContractState, default_params: DefaultParameters, game_array: Array<u8>
+        self: @TContractState, origin: Position, core_actions: ICoreActionsDispatcher, default_params: DefaultParameters, game_array: Array<u8>
     ) -> u8;
 }
 
@@ -177,7 +180,7 @@ mod tictactoe_actions {
             let mut statearray = determine_game_state(world, game.x, game.y);
 
             // Check if the player won already
-            let winner_state = self.check_winner(default_params, statearray.clone());
+            let winner_state = self.check_winner(origin_position, core_actions, default_params, statearray.clone());
 
             if winner_state == 1 {
                 // TODO emit event and handle everything properly
@@ -235,7 +238,7 @@ mod tictactoe_actions {
             set!(world, (game));
 
             // Check if the player won already
-            let winner_state = self.check_winner(default_params, statearray.clone());
+            let winner_state = self.check_winner(origin_position, core_actions, default_params, statearray.clone());
 
             if winner_state == 1 {
                 // TODO emit event and handle everything properly
@@ -258,7 +261,7 @@ mod tictactoe_actions {
 
 
         fn check_winner(
-            self: @ContractState, default_params: DefaultParameters, game_array: Array<u8>
+            self: @ContractState, origin: Position, core_actions: ICoreActionsDispatcher, default_params: DefaultParameters, game_array: Array<u8>
         ) -> u8 {
             let mut player1: u8 = 1;
             let mut result: u8 = 0;
@@ -336,19 +339,21 @@ mod tictactoe_actions {
             else if (result == 1 || result == 2) && arr.len() == 3 {
                 let mut index = 0;
                 if result == 1 {
-                    let pixel_color = GREEN;
+                    // GREEN
+                    let pixel_color = 0x00ff00;
                 }
                 else {
-                    let pixel_color = RED;
+                    // RED
+                    let pixel_color = 0xff0000;
                 }
+                
                 loop {
                     if index == 3 {
                         break;
                     }
                     
-                    let pixel_position = position_from(ORIGIN, arr[index]);
-                    core_actions
-                    .update_pixel(
+                    let pixel_position = position_from(origin, *arr.at(index));
+                    core_actions.update_pixel(
                         player,
                         get_contract_address(),
                         PixelUpdate {
