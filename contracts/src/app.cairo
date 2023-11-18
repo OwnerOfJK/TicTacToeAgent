@@ -42,6 +42,9 @@ trait ITicTacToeActions<TContractState> {
     fn init(self: @TContractState);
     fn interact(self: @TContractState, default_params: DefaultParameters) -> felt252;
     fn play(self: @TContractState, default_params: DefaultParameters) -> felt252;
+    fn check_winner(
+        self: @TContractState, default_params: DefaultParameters, game_array: Array<u8>
+    ) -> u8;
 }
 
 #[dojo::contract]
@@ -62,7 +65,7 @@ mod tictactoe_actions {
     use pixelaw::core::models::registry::{App, AppName, CoreActionsAddress};
     use debug::PrintTrait;
 
-    use tictactoe::inference::predict;
+    use tictactoe::inference::move_selector;
     use core::array::SpanTrait;
     use orion::operators::tensor::{TensorTrait, FP16x16Tensor, Tensor, FP16x16TensorAdd};
     use orion::operators::nn::{NNTrait, FP16x16NN};
@@ -150,7 +153,7 @@ mod tictactoe_actions {
                         x: position.x,
                         y: position.y,
                         color: Option::None,
-                        alert: Option::None, 
+                        alert: Option::None,
                         timestamp: Option::None,
                         text: Option::Some('U+0058'),
                         app: Option::None,
@@ -162,26 +165,57 @@ mod tictactoe_actions {
             // And load the Game
             let mut game = get!(world, (field.id), TicTacToeGame);
 
+            // Get the origin pixel
+            let origin_position = Position{x: game.x, y: game.y};
 
             // Determine the game state
             // Loop all the pixels, starting with the main
             let statearray = determine_game_state(world, game.x, game.y);
 
-
             // Get the AI move
-            let ai_move = predict(statearray);
+            let ai_move_index = move_selector(statearray.clone(), 1);
+
 
             // Handle the AI move
-                // Change the field
-                // Change the pixel
-                // Update the Game object
+            // Find the pixel belonging to the index returned 
+            // index 0 means the top-left pixel 
+            let ai_position = position_from(origin_position, ai_move_index);
 
+            // Change the field
+            let mut ai_field  = get!(world, (ai_position.x, ai_position.y), TicTacToeGameField);
+            // Change the pixel
+            // Update the Game object
 
             // Check if the game is done and determine winner
-
+            if self.check_winner(default_params, statearray) == 1 {
+                'human wins'.print();
+            }
 
             'done'
         }
+
+
+
+        fn check_winner(
+            self: @ContractState, default_params: DefaultParameters, game_array: Array<u8>
+        ) -> u8 {
+            let mut player1: u8 = 1;
+            let mut result: u8 = 0;
+            if *game_array.at(0) == player1
+                && *game_array.at(1) == player1
+                && *game_array.at(2) == player1 {
+                result = 1;
+            }
+            result
+        }
+    }
+
+    // For a given array index, give the appropriate position
+    fn position_from(origin: Position, index: u32) -> Position {
+        let mut result = origin.clone();
+        
+
+        result
     }
 
     fn determine_game_state(world: IWorldDispatcher, x: u64, y: u64) -> Array<u8> {
@@ -280,19 +314,5 @@ mod tictactoe_actions {
             };
             x += 1;
         };
-    }
-
-    fn create_test_board() -> orion::operators::tensor::core::Tensor::<
-        orion::numbers::fixed_point::implementations::fp16x16::core::FP16x16
-    > {
-        let two = FixedTrait::<FP16x16>::new_unscaled(2, false);
-        let one = FixedTrait::<FP16x16>::new_unscaled(1, false);
-        let zero = FixedTrait::<FP16x16>::new_unscaled(0, false);
-
-        Tensor {
-            shape: array![9].span(),
-            // data: array![zero, zero, zero, zero, zero, zero, zero, zero, zero].span()
-            data: array![one, two, one, two, one, two, one, two, zero].span()
-        }
     }
 }
