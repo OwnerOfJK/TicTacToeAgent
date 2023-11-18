@@ -61,7 +61,7 @@ fn predict(mut x: Tensor<FP16x16>) -> FP16x16 {
 //                 board_state_copy[i,j]=turn_monitor
 //                 legal_moves_dict[(i,j)]=board_state_copy.flatten()
 //     return legal_moves_dict
-fn legal_moves_generator(current_board_state: Array<u8>, turn_monitor: u8) -> Array<Array<u8>> {
+fn legal_moves_generator(current_board_state: @Array<u8>, turn_monitor: u8) -> Array<Array<u8>> {
     let mut moves = ArrayTrait::new();
     let mut index = 0;
     loop {
@@ -71,11 +71,10 @@ fn legal_moves_generator(current_board_state: Array<u8>, turn_monitor: u8) -> Ar
         // loop body
         if *current_board_state.at(index) == MOVE_EMPTY {
             let board_state_copy = modify_array_at_index(
-                @current_board_state, index, turn_monitor.into()
+                current_board_state, index, turn_monitor.into()
             );
             moves.append(board_state_copy);
         }
-        let copy = modify_array_at_index(@current_board_state, 1, 2);
         // end of loop body
         index += 1;
     };
@@ -123,9 +122,60 @@ fn modify_array_at_index(array: @Array<u8>, index: u32, value: u8) -> Array<u8> 
 //     score=tracker[selected_move]
 //     return selected_move,new_board_state,score
 
+fn move_selector(current_board_state: Array<u8>, turn_monitor: u8) -> u32 { // index of the move
+    let current_max_index = 0;
+    let current_max = 0;
+    let legal_moves = legal_moves_generator(@current_board_state, turn_monitor);
+    let mut i = 0;
+    loop {
+        if (i >= current_board_state.len()) {
+            break;
+        }
+        // predict
+
+        // compare prediction
+        // set current prediction and index to max prediction
+        i += 1;
+    };
+    // return the move in the index
+    current_max_index
+}
+
+// TODO impl Into<Array<u8>, Tensor>
+fn board_state_to_tensor(board_state: Array<u8>) -> Tensor<FP16x16> {
+    // TODO globals?
+    let p0 = FixedTrait::<FP16x16>::new_unscaled(MOVE_PLAYER0.into(), false);
+    let p1 = FixedTrait::<FP16x16>::new_unscaled(MOVE_PLAYER1.into(), false);
+    let empty = FixedTrait::<FP16x16>::new_unscaled(MOVE_EMPTY.into(), false);
+
+    let mut tensor_data = ArrayTrait::new();
+
+    let mut i = 0;
+    loop {
+        if i >= board_state.len() {
+            break;
+        }
+        tensor_data
+            .append(
+                // TODO use enum with Into<u8> and match on it
+                if *board_state.at(i) == MOVE_PLAYER0 {
+                    p0
+                } else if *board_state.at(i) == MOVE_PLAYER1 {
+                    p1
+                } else {
+                    empty
+                }
+            );
+        i += 1;
+    };
+
+    Tensor { shape: array![9].span(), data: tensor_data.span() }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{MOVE_PLAYER0, MOVE_PLAYER1, MOVE_EMPTY};
+    use orion::numbers::{FP16x16, FixedTrait};
     #[test]
     #[available_gas(2000000000000)]
     fn test_modify_array_at_index() {
@@ -151,7 +201,7 @@ mod tests {
             MOVE_EMPTY,
             MOVE_PLAYER1,
         ];
-        let moves = super::legal_moves_generator(board, MOVE_PLAYER0);
+        let moves = super::legal_moves_generator(@board, MOVE_PLAYER0);
 
         assert(moves.len() == 2, 'wrong moves len');
 
@@ -165,17 +215,52 @@ mod tests {
         assert(*move0.at(4) == MOVE_PLAYER1, 'wrong value at move 0 index 4');
         assert(*move0.at(5) == MOVE_PLAYER0, 'wrong value at move 0 index 5');
         assert(*move0.at(6) == MOVE_PLAYER0, 'wrong value at move 0 index 6');
-        assert(*move0.at(7) == MOVE_EMPTY,   'wrong value at move 0 index 7');
+        assert(*move0.at(7) == MOVE_EMPTY, 'wrong value at move 0 index 7');
         assert(*move0.at(8) == MOVE_PLAYER1, 'wrong value at move 0 index 8');
 
         assert(*move1.at(0) == MOVE_PLAYER0, 'wrong value at move 1 index 0');
         assert(*move1.at(1) == MOVE_PLAYER0, 'wrong value at move 1 index 1');
-        assert(*move1.at(2) == MOVE_EMPTY,   'wrong value at move 1 index 2');
+        assert(*move1.at(2) == MOVE_EMPTY, 'wrong value at move 1 index 2');
         assert(*move1.at(3) == MOVE_PLAYER1, 'wrong value at move 1 index 3');
         assert(*move1.at(4) == MOVE_PLAYER1, 'wrong value at move 1 index 4');
         assert(*move1.at(5) == MOVE_PLAYER0, 'wrong value at move 1 index 5');
         assert(*move1.at(6) == MOVE_PLAYER0, 'wrong value at move 1 index 6');
         assert(*move1.at(7) == MOVE_PLAYER0, 'wrong value at move 1 index 7');
         assert(*move1.at(8) == MOVE_PLAYER1, 'wrong value at move 1 index 8');
+    }
+
+    //fn legal_moves_generator(current_board_state: Array<u8>, turn_monitor: u8) -> Array<Array<u8>> {
+    #[test]
+    #[available_gas(2000000000000)]
+    fn test_board_state_to_tensor() {
+        let board = array![
+            MOVE_PLAYER0,
+            MOVE_PLAYER0,
+            MOVE_EMPTY,
+            MOVE_PLAYER1,
+            MOVE_PLAYER1,
+            MOVE_PLAYER0,
+            MOVE_PLAYER0,
+            MOVE_EMPTY,
+            MOVE_PLAYER1,
+        ];
+        let tensor = super::board_state_to_tensor(board);
+
+        // TODO
+        // assert(tensor.shape(0) == 9, 'wrong tensor shape');
+
+        let p0 = FixedTrait::<FP16x16>::new_unscaled(MOVE_PLAYER0.into(), false);
+        let p1 = FixedTrait::<FP16x16>::new_unscaled(MOVE_PLAYER1.into(), false);
+        let empty = FixedTrait::<FP16x16>::new_unscaled(MOVE_EMPTY.into(), false);
+
+        assert(*tensor.data.at(0) == p0,    'wrong value at index 0');
+        assert(*tensor.data.at(1) == p0,    'wrong value at index 1');
+        assert(*tensor.data.at(2) == empty, 'wrong value at index 2');
+        assert(*tensor.data.at(3) == p1,    'wrong value at index 3');
+        assert(*tensor.data.at(4) == p1,    'wrong value at index 4');
+        assert(*tensor.data.at(5) == p0,    'wrong value at index 5');
+        assert(*tensor.data.at(6) == p0,    'wrong value at index 6');
+        assert(*tensor.data.at(7) == empty, 'wrong value at index 7');
+        assert(*tensor.data.at(8) == p1,    'wrong value at index 8');
     }
 }
