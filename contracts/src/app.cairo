@@ -258,7 +258,7 @@ mod tictactoe_actions {
                 if *game_array2.at(index) == *game_array2.at(index + 3) 
                     && *game_array2.at(index) == *game_array2.at(index + 6)
                     && *game_array2.at(index) != 0 {
-                        result = *game_array2.at(3*index);
+                        result = *game_array2.at(index);
                 }
                 index = index + 1 ;
             };
