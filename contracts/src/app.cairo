@@ -13,7 +13,8 @@ const tictactoe_size: u64 = 3;
 #[derive(Serde, Copy, Drop, PartialEq, Introspect)]
 enum State {
     None: (),
-    Open: (),
+    WAITING_FOR_HUMAN: (),
+    WAITING_FOR_MACHINE: (),
     Finished: ()
 }
 
@@ -34,9 +35,11 @@ trait ITicTacToeActions<TContractState> {
 
     fn init(self: @TContractState);
     fn interact(self: @TContractState, default_params: DefaultParameters);
-    // fn human_move(self: @TContractState, default_params: DefaultParameters);
-    // fn machine_move(self: @TContractState, default_params: DefaultParameters);
+    fn human_move(self: @TContractState, default_params: DefaultParameters);
+    fn machine_move(self: @TContractState, default_params: DefaultParameters);
+    //fn check_winner(self: @TContractState, default_params: DefaultParameters);
     fn ownerless_space(self: @TContractState, default_params: DefaultParameters) -> bool;
+    fn available_moves(self: @TContractState, default_params: DefaultParameters) -> u8;
 }
 
 #[dojo::contract]
@@ -87,19 +90,20 @@ mod tictactoe_actions {
             let position = default_params.position;
             let mut pixel = get!(world, (position.x, position.y), (Pixel));
             let mut game = get!(world, (position.x, position.y), TicTacToeGame);
-            let caller_app = get!(world, get_caller_address(), (App));
-            //caller_app.print();
+            let THIS_APP = get!(world, APP_KEY, (AppName));
             let timestamp = starknet::get_block_timestamp();
-
-            //do I need this??
             let player = core_actions.get_player_address(default_params.for_player);
             let system = core_actions.get_system_address(default_params.for_system);
 
-			if pixel.app == caller_app.system && game.state == State::Open
+			if pixel.app == THIS_APP.system && game.state == State::WAITING_FOR_HUMAN //check if current pixel is a tictactoe pixel and game state
 			{
-				//self.human_move(default_params);
+				self.human_move(default_params);
 			}
-			else if true == true //check if size grid ownerless;
+            else if pixel.app == THIS_APP.system && game.state == State::WAITING_FOR_MACHINE //check if current pixel is a tictactoe pixel and game state
+			{
+				'wait for machine to play'.print();
+			}
+			else if self.ownerless_space(default_params) == true //check if size grid ownerless;
 			{
 				let mut id = world.uuid(); //do we need this in this condition?
                 game =
@@ -108,7 +112,7 @@ mod tictactoe_actions {
                         y: position.y,
                         id,
                         creator: player,
-                        state: State::Open,
+                        state: State::WAITING_FOR_HUMAN,
                         started_timestamp: timestamp
                     };
 
@@ -152,44 +156,113 @@ mod tictactoe_actions {
 			}
 		}
 
-        // fn human_move(self: @TContractState, default_params: DefaultParameters) {
-        //     let world = self.world_dispatcher.read();
-        // }
-
-
-        // fn machine_move(self: @TContractState, default_params: DefaultParameters) {
-        //     let world = self.world_dispatcher.read();
-        // }
-
-        	fn ownerless_space(self: @ContractState, default_params: DefaultParameters) -> bool {
-			let world = self.world_dispatcher.read();
+        fn human_move(self: @ContractState, default_params: DefaultParameters) {
+            //core variables
+            let world = self.world_dispatcher.read();
             let core_actions = get_core_actions(world);
+            
+            //functional variables
             let position = default_params.position;
             let mut pixel = get!(world, (position.x, position.y), (Pixel));
+            let mut game = get!(world, (position.x, position.y), TicTacToeGame);
+            let player = core_actions.get_player_address(default_params.for_player);
+            let system = core_actions.get_system_address(default_params.for_system);
 
-			let mut i: u64 = 0;
-			let mut j: u64 = 0;
-			let mut check_test: bool = true;
+            core_actions
+                .update_pixel(
+                player,
+                system,
+                PixelUpdate {
+                    x: position.x,
+                    y: position.y,
+                    color: Option::Some(default_params.color),
+                    alert: Option::None,
+                    timestamp: Option::None,
+                    text: Option::Some('U+274C'),
+                    app: Option::Some(system),
+                    owner: Option::Some(player),
+                    action: Option::None,
+                    }
+                );
+            game.state = State::WAITING_FOR_MACHINE;
 
-			let check = loop {
-				if !(pixel.owner.is_zero() && i <= tictactoe_size)
-				{
-					break false;
-				}
-				pixel = get!(world, (position.x, (position.y + i)), (Pixel));
-				j = 0;
-				loop {
-					if !(pixel.owner.is_zero() && j <= tictactoe_size)
-					{
-						break false;
-					}
-					pixel = get!(world, ((position.x + j), position.y), (Pixel));
-					j += 1;
-				};
-				i += 1;
-				break true;
-			};
-			check
+            self.machine_move(default_params);
+        }
+
+
+        fn machine_move(self: @ContractState, default_params: DefaultParameters) {
+            //core variables
+            let world = self.world_dispatcher.read();
+            let core_actions = get_core_actions(world);
+            
+            //functional variables
+            let position = default_params.position;
+            let mut pixel = get!(world, (position.x, position.y), (Pixel));
+            let mut game = get!(world, (position.x, position.y), TicTacToeGame);
+            let player = core_actions.get_player_address(default_params.for_player);
+            let system = core_actions.get_system_address(default_params.for_system);
+
+            //here I would call the model and ask for the optimal move.
+
+            //this is updating the pixelaw state
+            core_actions
+                .update_pixel(
+                player,
+                system,
+                PixelUpdate {
+                    x: position.x,
+                    y: position.y,
+                    color: Option::Some(default_params.color),
+                    alert: Option::None,
+                    timestamp: Option::None,
+                    text: Option::Some('U+274C'),
+                    app: Option::Some(system),
+                    owner: Option::Some(player),
+                    action: Option::None,
+                    }
+                );
+
+            if self.available_moves(default_params) == 0 {
+                game.state = State::Finished;
             }
-	}
+            game.state = State::WAITING_FOR_MACHINE;
+        }
+
+        fn ownerless_space(self: @ContractState, default_params: DefaultParameters) -> bool {
+        let world = self.world_dispatcher.read();
+        let core_actions = get_core_actions(world);
+        let position = default_params.position;
+        let mut pixel = get!(world, (position.x, position.y), (Pixel));
+
+        let mut i: u64 = 0;
+        let mut j: u64 = 0;
+        let mut check_test: bool = true;
+
+        let check = loop {
+            if !(pixel.owner.is_zero() && i <= tictactoe_size)
+            {
+                break false;
+            }
+            pixel = get!(world, (position.x, (position.y + i)), (Pixel));
+            j = 0;
+            loop {
+                if !(pixel.owner.is_zero() && j <= tictactoe_size)
+                {
+                    break false;
+                }
+                pixel = get!(world, ((position.x + j), position.y), (Pixel));
+                j += 1;
+            };
+            i += 1;
+            break true;
+        };
+        check
+        }
+
+        fn available_moves(self: @ContractState, default_params: DefaultParameters) -> u8 {
+            let world = self.world_dispatcher.read();
+            let test: u8 = 2;
+            test
+        }
+    }
 }
