@@ -213,8 +213,8 @@ mod tictactoe_actions {
     // For a given array index, give the appropriate position
     fn position_from(origin: Position, index: u32) -> Position {
         let mut result = origin.clone();
-        
-
+        result.x = result.x + ((index+1) / 3).into();
+        result.y = result.y + ((index+1) % 3).into();
         result
     }
 
