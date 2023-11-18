@@ -72,6 +72,8 @@ mod tests {
         // Deploy everything
         let (world, core_actions, tictactoe_actions) = deploy_world();
 
+        let dummy_uuid = world.uuid();
+
         core_actions.init();
         tictactoe_actions.init();
 

@@ -93,6 +93,7 @@ mod tictactoe_actions {
         }
 
         fn interact(self: @ContractState, default_params: DefaultParameters) -> felt252 {
+            'interact: start'.print();
             // Load important variables
             let world = self.world_dispatcher.read();
             let core_actions = get_core_actions(world);
@@ -107,7 +108,7 @@ mod tictactoe_actions {
             );
 
             let game = TicTacToeGame {
-                id: world.uuid(),
+                id: game_id,
                 player1: player,
                 started_time: starknet::get_block_timestamp(),
                 x: position.x,
@@ -116,11 +117,12 @@ mod tictactoe_actions {
             };
 
             set!(world, (game));
-
+            'interact: done'.print();
             'done'
         }
 
         fn play(self: @ContractState, default_params: DefaultParameters) -> felt252 {
+            'play: start'.print();
             // Load important variables
             let world = self.world_dispatcher.read();
             let core_actions = get_core_actions(world);
@@ -164,7 +166,7 @@ mod tictactoe_actions {
 
             // And load the Game
             let mut game = get!(world, (field.id), TicTacToeGame);
-
+            game.moves_left.print();
             game.moves_left -= 1;
             set!(world, (game));
 
@@ -175,12 +177,18 @@ mod tictactoe_actions {
             let mut statearray = determine_game_state(world, game.x, game.y);
 
             if game.moves_left == 0 {
+                let winner = self.check_winner(default_params, statearray);
                 // Check if the game is done and determine winner
-                if self.check_winner(default_params, statearray) == 1 {
-                    'human wins'.print();
+
+                if winner == 0 {
+                    'Oh.. its a tie'.print();
+                } else if winner == 1 {
+                    'AI Winner'.print();
+                } else if winner == 2 {
+                    panic(array!['this is weird']);
                 }
-                // TODO Handle winner
-                return 'human wins';
+
+                return 'done'; // TODO emit event and return string
             }
 
             // Get the AI move
@@ -217,9 +225,7 @@ mod tictactoe_actions {
             // Update the Game object
             game.moves_left -= 1;
             set!(world, (game));
-
-
-
+            'play: done'.print();
             'done'
         }
 
@@ -241,8 +247,8 @@ mod tictactoe_actions {
     // For a given array index, give the appropriate position
     fn position_from(origin: Position, index: u32) -> Position {
         let mut result = origin.clone();
-        result.x = result.x + ((index+1) / 3).into();
-        result.y = result.y + ((index+1) % 3).into();
+        result.x = result.x + ((index + 1) / 3).into();
+        result.y = result.y + ((index + 1) % 3).into();
         result
     }
 
