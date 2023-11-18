@@ -8,6 +8,13 @@ sierra-replace-ids = true
 
 [dependencies]
 pixelaw = { git = "https://github.com/pixelaw/core", branch = "main" }
+orion = { git = "https://github.com/gizatechxyz/orion.git", rev = "v0.1.5" }
+sequential_1_dense_1_matmul_readvariableop_0 = { path = "crates/sequential_1_dense_1_matmul_readvariableop_0" }
+sequential_1_dense_1_biasadd_readvariableop_0 = { path = "crates/sequential_1_dense_1_biasadd_readvariableop_0" }
+sequential_1_dense_2_matmul_readvariableop_0 = { path = "crates/sequential_1_dense_2_matmul_readvariableop_0" }
+sequential_1_dense_2_biasadd_readvariableop_0 = { path = "crates/sequential_1_dense_2_biasadd_readvariableop_0" }
+sequential_1_dense_3_matmul_readvariableop_0 = { path = "crates/sequential_1_dense_3_matmul_readvariableop_0" }
+sequential_1_dense_3_biasadd_readvariableop_0 = { path = "crates/sequential_1_dense_3_biasadd_readvariableop_0" }
 
 [[target.dojo]]
 build-external-contracts = [
