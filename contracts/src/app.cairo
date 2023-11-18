@@ -17,10 +17,10 @@ struct TicTacToeGame {
     #[key]
     id: u32,
     player1: ContractAddress,
-    player2: ContractAddress,
     started_time: u64,
     x: u64,
-    y: u64
+    y: u64,
+    moves_left: u8
 }
 
 #[derive(Model, Copy, Drop, Serde, SerdeLen)]
@@ -109,10 +109,10 @@ mod tictactoe_actions {
             let game = TicTacToeGame {
                 id: world.uuid(),
                 player1: player,
-                player2: Zeroable::zero(),
                 started_time: starknet::get_block_timestamp(),
                 x: position.x,
-                y: position.y
+                y: position.y,
+                moves_left: 9
             };
 
             set!(world, (game));
@@ -165,16 +165,26 @@ mod tictactoe_actions {
             // And load the Game
             let mut game = get!(world, (field.id), TicTacToeGame);
 
+            game.moves_left -= 1;
+            set!(world, (game));
+
             // Get the origin pixel
-            let origin_position = Position{x: game.x, y: game.y};
+            let origin_position = Position { x: game.x, y: game.y };
 
             // Determine the game state
-            // Loop all the pixels, starting with the main
-            let statearray = determine_game_state(world, game.x, game.y);
+            let mut statearray = determine_game_state(world, game.x, game.y);
+
+            if game.moves_left == 0 {
+                // Check if the game is done and determine winner
+                if self.check_winner(default_params, statearray) == 1 {
+                    'human wins'.print();
+                }
+                // TODO Handle winner
+                return 'human wins';
+            }
 
             // Get the AI move
             let ai_move_index = move_selector(statearray.clone(), 1);
-
 
             // Handle the AI move
             // Find the pixel belonging to the index returned 
@@ -182,18 +192,36 @@ mod tictactoe_actions {
             let ai_position = position_from(origin_position, ai_move_index);
 
             // Change the field
-            let mut ai_field  = get!(world, (ai_position.x, ai_position.y), TicTacToeGameField);
-            // Change the pixel
-            // Update the Game object
+            let mut ai_field = get!(world, (ai_position.x, ai_position.y), TicTacToeGameField);
+            ai_field.state = 2;
+            set!(world, (ai_field));
 
-            // Check if the game is done and determine winner
-            if self.check_winner(default_params, statearray) == 1 {
-                'human wins'.print();
-            }
+            // Change the Pixel
+            core_actions
+                .update_pixel(
+                    player,
+                    get_contract_address(),
+                    PixelUpdate {
+                        x: position.x,
+                        y: position.y,
+                        color: Option::None,
+                        alert: Option::None,
+                        timestamp: Option::None,
+                        text: Option::Some('U+004F'),
+                        app: Option::None,
+                        owner: Option::None,
+                        action: Option::Some('none')
+                    }
+                );
+
+            // Update the Game object
+            game.moves_left -= 1;
+            set!(world, (game));
+
+
 
             'done'
         }
-
 
 
         fn check_winner(
