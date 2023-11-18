@@ -17,7 +17,8 @@ mod tests {
     use dojo::test_utils::{spawn_test_world, deploy_contract};
 
     use tictactoe::app::{
-        tic_tac_toe_game, tictactoe_actions, ITicTacToeActionsDispatcher, ITicTacToeActionsDispatcherTrait
+        tic_tac_toe_game, tic_tac_toe_game_field, tictactoe_actions, ITicTacToeActionsDispatcher,
+        ITicTacToeActionsDispatcherTrait
     };
 
     use zeroable::Zeroable;
@@ -35,7 +36,8 @@ mod tests {
                 queue_item::TEST_CLASS_HASH,
                 core_actions_address::TEST_CLASS_HASH,
                 permissions::TEST_CLASS_HASH,
-                tic_tac_toe_game::TEST_CLASS_HASH
+                tic_tac_toe_game::TEST_CLASS_HASH,
+                tic_tac_toe_game_field::TEST_CLASS_HASH
             ]
         );
 
@@ -47,7 +49,9 @@ mod tests {
         // Deploy Tictactoe actions
         let tictactoe_actions_address = world
             .deploy_contract('salt2', tictactoe_actions::TEST_CLASS_HASH.try_into().unwrap());
-        let tictactoe_actions = ITicTacToeActionsDispatcher { contract_address: tictactoe_actions_address };
+        let tictactoe_actions = ITicTacToeActionsDispatcher {
+            contract_address: tictactoe_actions_address
+        };
 
         // Setup dojo auth
         world.grant_writer('Pixel', core_actions_address);
@@ -55,6 +59,9 @@ mod tests {
         world.grant_writer('AppName', core_actions_address);
         world.grant_writer('CoreActionsAddress', core_actions_address);
         world.grant_writer('Permissions', core_actions_address);
+
+        world.grant_writer('TicTacToeGame', tictactoe_actions_address);
+        world.grant_writer('TicTacToeGameField', tictactoe_actions_address);
 
         (world, core_actions, tictactoe_actions)
     }
@@ -71,7 +78,8 @@ mod tests {
         let player1 = starknet::contract_address_const::<0x1337>();
         starknet::testing::set_account_contract_address(player1);
 
-
+        // Create the game
+        // Pixels 1,1 to 3,3 will be reserved
         tictactoe_actions
             .interact(
                 DefaultParameters {
@@ -82,10 +90,20 @@ mod tests {
                 },
             );
 
+        // Play the first move
+        tictactoe_actions
+            .play(
+                DefaultParameters {
+                    for_player: Zeroable::zero(),
+                    for_system: Zeroable::zero(),
+                    position: Position { x: 1, y: 1 },
+                    color: 0xff0000
+                },
+            );
+
         let pixel_1_1 = get!(world, (1, 1), (Pixel));
         assert(pixel_1_1.color == 0, 'should be the color');
 
         'Passed test'.print();
     }
-
 }
