@@ -1,0 +1,8 @@
+pandas
+tensorflow
+matplotlib
+scipy
+keras2onnx
+onnx
+onnxmltools
+tf2onnx
