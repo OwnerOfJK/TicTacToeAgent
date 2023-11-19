@@ -54,6 +54,7 @@ trait ITicTacToeActions<TContractState> {
     ) -> u8;
 }
 
+
 #[dojo::contract]
 mod tictactoe_actions {
     use starknet::{get_caller_address, get_contract_address, get_execution_info, ContractAddress};
@@ -77,6 +78,19 @@ mod tictactoe_actions {
     use orion::operators::tensor::{TensorTrait, FP16x16Tensor, Tensor, FP16x16TensorAdd};
     use orion::operators::nn::{NNTrait, FP16x16NN};
     use orion::numbers::{FP16x16, FixedTrait};
+
+    #[derive(Drop, starknet::Event)]
+    struct GameSpawned {
+        game_id: u32,
+        app: ContractAddress,
+        owner: ContractAddress
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct GameResult {
+        player: ContractAddress,
+        result: felt252
+    }
 
     #[derive(Drop, starknet::Event)]
     struct GameOpened {
@@ -122,8 +136,14 @@ mod tictactoe_actions {
                 y: position.y,
                 moves_left: 9
             };
+            let system = core_actions.get_system_address(default_params.for_system);
 
             set!(world, (game));
+            emit!(world, GameSpawned { 
+                game_id: game_id, 
+                app: system, 
+                owner:player 
+            });
             'interact: done'.print();
             'done'
         }
@@ -190,15 +210,19 @@ mod tictactoe_actions {
             if winner_state == 1 {
                 // TODO emit event and handle everything properly
                 'human winner'.print();
+                emit!(world, GameResult { player, result:'human won!' });
                 return 'human won!';
             } else if winner_state == 2 {
                 'bot winner'.print();
+                emit!(world, GameResult { player, result:'bot won!' });
                 return 'bot won!';
             } else if winner_state == 0 {
                 'tie game'.print();
+                emit!(world, GameResult { player, result:'tie game!' });
                 return 'tie game!';
             } else if game.moves_left == 0 {
                 'Oh.. its a tie'.print();
+                emit!(world, GameResult { player, result:'tie game!' });
                 return 'tie';
             }
 
@@ -249,15 +273,19 @@ mod tictactoe_actions {
             if winner_state == 1 {
                 // TODO emit event and handle everything properly
                 'human winner'.print();
+                emit!(world, GameResult { player, result:'human won!' });
                 return 'human won!';
             } else if winner_state == 2 {
                 'bot winner'.print();
+                emit!(world, GameResult { player, result:'bot won!' });
                 return 'bot won!';
             } else if winner_state == 0 {
                 'tie game'.print();
+                emit!(world, GameResult { player, result:'tie game!' });
                 return 'tie game!';
             } else if game.moves_left == 0 {
                 'Oh.. its a tie'.print();
+                emit!(world, GameResult { player, result:'tie game!' });
                 return 'tie';
             }
 
