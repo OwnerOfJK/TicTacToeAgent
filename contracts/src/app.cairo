@@ -101,7 +101,9 @@ mod tictactoe_actions {
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
-        GameOpened: GameOpened
+        GameOpened: GameOpened,
+        GameResult: GameResult,
+        GameSpawned: GameSpawned,
     }
 
     #[external(v0)]
